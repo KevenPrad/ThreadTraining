@@ -139,6 +139,7 @@ public class MainActivity extends AppCompatActivity {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+                //stopCalculating();
             }
         });
 
@@ -226,12 +227,12 @@ public class MainActivity extends AppCompatActivity {
                 int boucle=0;
                 if (is != null) {
                   while (isRecording) {
-                      //playAudio();
                       try {
                           Thread.sleep(1000);
                       } catch (InterruptedException e) {
                           e.printStackTrace();
                       }
+                      //playAudio();
                       int i;
                       FFT a = new FFT(1024, RECORDER_SAMPLERATE);
                       //buffer with the signal
@@ -245,11 +246,11 @@ public class MainActivity extends AppCompatActivity {
 
                       a.forward(Tofloat(music2Short));
 
-                      BarGraphSeries<DataPoint> series = new BarGraphSeries<>(generateData(a, 100));
-                      series.resetData(generateData(a,100));
+                      BarGraphSeries<DataPoint> series = new BarGraphSeries<>(generateData(a, 800));
+                      series.resetData(generateData(a,800));
 
                       graph.addSeries(series);
-                      int frequency = 17000;
+                      int frequency = 860;
 
                       boucle++;
 
@@ -259,7 +260,7 @@ public class MainActivity extends AppCompatActivity {
                       int aff = Math.round(seuil);
                       if (aff >= 1000) {
                           detect.setText("boucle n°:" + boucle + "detected : " + aff + "\n");
-                          play();
+                          //play();
                       } else {
                           detect.setText("boucle n°:" + boucle + "not detected : " + aff + "\n");
                       }
@@ -330,6 +331,13 @@ public class MainActivity extends AppCompatActivity {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    private void stopCalculating(){
+        if(null != calculThread){
+            calculThread.stop();
+            calculThread = null;
         }
     }
 
