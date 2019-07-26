@@ -753,6 +753,7 @@ id parent
 id parentPanel
 id percent
 id play
+id problem
 id progress_circular
 id progress_horizontal
 id radio

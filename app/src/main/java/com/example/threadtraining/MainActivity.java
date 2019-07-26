@@ -50,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
     private Button stop;
     private Button graph_init;
     private Button graph_draw;
+    private TextView problem;
 
     //Record settings
     private static final int RECORDER_BPP = 16;
@@ -89,6 +90,12 @@ public class MainActivity extends AppCompatActivity {
     //play/stop part
     MediaPlayer mediaPlayer;
 
+    //error management
+    int boucleInit = 0;
+    boolean calculating;
+    boolean endRecording;
+
+    private Thread managementThread;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -107,21 +114,25 @@ public class MainActivity extends AppCompatActivity {
         graph_init=findViewById(R.id.initialise);
         detect = findViewById(R.id.detection);
         graph= findViewById(R.id.graph);
+        problem=findViewById(R.id.problem);
+
+        problem.setText("problem");
+        detect.setText("hello");
 
         enableButtons(false);
 
         bufferSize =AudioRecord.getMinBufferSize(RECORDER_SAMPLERATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-
 
         record.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 AppLog.logString("Start Recording");
                 enableButtons(true);
-                startRecording();
+                endRecording=false;
 
-                //playAudio();
-                startCalculating();
+                recordManagementThread();
+
+
             }
         });
 
@@ -218,59 +229,106 @@ public class MainActivity extends AppCompatActivity {
         return (file.getAbsolutePath() + "/" + AUDIO_RECORDER_TEMP_FILE);
     }
 
-    private void startCalculating(){
+    private void startCalculating() throws InterruptedException {
         calculThread= new Thread(new Runnable() {
             @Override
             public void run() {
 
+                //while (isRecording) {
+                calculating = true;
                 playAudio();
-                int boucle=0;
                 if (is != null) {
-                  while (isRecording) {
-                      try {
-                          Thread.sleep(1000);
-                      } catch (InterruptedException e) {
-                          e.printStackTrace();
-                      }
-                      //playAudio();
-                      int i;
-                      FFT a = new FFT(1024, RECORDER_SAMPLERATE);
-                      //buffer with the signal
-                      try {
-                          while (((i = is.read(music)) != -1)) {
-                              ByteBuffer.wrap(music).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(music2Short);
-                          }
-                      } catch (IOException e) {
-                          e.printStackTrace();
-                      }
 
-                      a.forward(Tofloat(music2Short));
 
-                      BarGraphSeries<DataPoint> series = new BarGraphSeries<>(generateData(a, 800));
-                      series.resetData(generateData(a,800));
+                    /*try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }*/
+                    int i;
+                    FFT a = new FFT(1024, RECORDER_SAMPLERATE);
+                    //buffer with the signal
+                    try {
+                        while (((i = is.read(music)) != -1)) {
+                            ByteBuffer.wrap(music).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(music2Short);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    a.forward(Tofloat(music2Short));
 
-                      graph.addSeries(series);
-                      int frequency = 860;
+                    BarGraphSeries<DataPoint> series = new BarGraphSeries<>(generateData(a, 800));
+                    series.resetData(generateData(a, 800));
 
-                      boucle++;
+                    graph.addSeries(series);
+                    int frequency = 17000;
 
-                      int x = frequency / 43;
-                      int j = Math.round(x);
-                      float seuil = Math.abs(a.real[j] * a.real[j] + a.imag[j] * a.imag[j]) / 100000;
-                      int aff = Math.round(seuil);
-                      if (aff >= 1000) {
-                          detect.setText("boucle n°:" + boucle + "detected : " + aff + "\n");
-                          //play();
-                      } else {
-                          detect.setText("boucle n°:" + boucle + "not detected : " + aff + "\n");
-                      }
-                  }
+                    boucle++;
+                    detection(frequency, a, boucle);
+
+                    playAudio();
+                    //Reinit();
+                    calculating = false;
                 }
-
             }
-        });
+
+        }, "Calculating thread");
 
         calculThread.start();
+        //calculThread.join();
+
+        problem.setText("fin boucle join 1");
+        /*
+        while (true){
+            calculThread.start();
+            calculThread.join();
+        }
+*/
+    }
+
+    private void recordManagementThread() {
+        managementThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                while (true) {
+                    startRecording();
+                    try {
+                        startCalculating();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        stopRecording();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+
+        }, "Calculating thread");
+
+        managementThread.start();
+    }
+
+    private void detection(int frequency, FFT a, int boucle){
+        int x = frequency / 43;
+        int j = Math.round(x);
+        float seuil = Math.abs(a.real[j] * a.real[j] + a.imag[j] * a.imag[j]) / 100000;
+        int aff = Math.round(seuil);
+        if (aff >= 1000) {
+            detect.setText("boucle n°:" + boucle + "detected : " + aff + "\n");
+            //play();
+        } else {
+            detect.setText("boucle n°:" + boucle + "not detected : " + aff + "\n");
+        }
     }
 
     private void startRecording(){
@@ -503,15 +561,18 @@ public class MainActivity extends AppCompatActivity {
 
     public void initialize(){
 
+        boucleInit++;
         File initialFile = null;
         try {
             initialFile = new File(getFilename());
+            problem.setText("init file succeed" + boucleInit);
         } catch (IOException e) {
             e.printStackTrace();
-            detect.setText("init fft:" +e);
+            problem.setText("init fft:");
         }
         try{
             is = new FileInputStream(initialFile);
+            problem.setText("init is succeed"+ boucleInit);
         }
         catch (IOException e){
             e.printStackTrace();
@@ -532,6 +593,7 @@ public class MainActivity extends AppCompatActivity {
 
         this.initialize();
 
+
         if ( (minSize/2) % 2 != 0 ) {
             /*If minSize divided by 2 is odd, then subtract 1 and make it even*/
             music2Short     = new short [((minSize /2) - 1)/2];
@@ -543,6 +605,19 @@ public class MainActivity extends AppCompatActivity {
             music           = new byte  [minSize];  //pour motorola sinon /2
         }
 
+    }
+
+    public void Reinit(){
+        //fermer fichier
+        try {
+            is.close();
+            problem.setText("close successful");
+        } catch (IOException e) {
+            e.printStackTrace();
+            problem.setText("close is " + e);
+        }
+
+        this.initialize();
     }
 
     public float[] Tofloat(short[] s){

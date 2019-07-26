@@ -1,4 +1,4 @@
-#Wed Jul 24 10:53:52 CEST 2019
+#Fri Jul 26 11:19:08 CEST 2019
 base.0=/home/asus/AndroidStudioProjects/ThreadTraining/app/build/intermediates/dex/debug/mergeDexDebug/out
 path.0=classes.dex
 renamed.0=classes.dex
