@@ -97,6 +97,16 @@ public class MainActivity extends AppCompatActivity {
 
     private Thread managementThread;
 
+    //time management
+    long temp_start;
+    long temp_end;
+
+    boolean sender;
+    boolean detected;
+    int time_detected;
+
+    long timer=0;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -118,6 +128,10 @@ public class MainActivity extends AppCompatActivity {
 
         problem.setText("problem");
         detect.setText("hello");
+
+        time_detected=0;
+        detected=false;
+        sender=false;
 
         enableButtons(false);
 
@@ -157,9 +171,14 @@ public class MainActivity extends AppCompatActivity {
         play.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                play();
+                sender=true;
+                record.setEnabled(false);
+                stop_record.setEnabled(false);
                 Toast.makeText(MainActivity.this, "Playing", Toast.LENGTH_SHORT).show();
-
+                play();
+                temp_start= System.currentTimeMillis();
+                problem.setText("temps start :" + temp_start );
+                recordManagementThread();
             }
         });
 
@@ -234,17 +253,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
 
-                //while (isRecording) {
                 calculating = true;
                 playAudio();
                 if (is != null) {
 
-
-                    /*try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }*/
                     int i;
                     FFT a = new FFT(1024, RECORDER_SAMPLERATE);
                     //buffer with the signal
@@ -264,11 +276,23 @@ public class MainActivity extends AppCompatActivity {
                     int frequency = 17000;
 
                     boucle++;
-                    detection(frequency, a, boucle);
-
-                    playAudio();
-                    //Reinit();
-                    calculating = false;
+                    if (detection(frequency, a, boucle)){
+                        time_detected++;
+                    }
+                    else{
+                        time_detected=0;
+                    }
+                    if (time_detected >= 2){
+                        detected=true;
+                        if (sender ){
+                            temp_end=System.currentTimeMillis();
+                            timer=temp_end-temp_start;
+                            problem.setText("temps tot :" + timer );
+                        }
+                        else{
+                            play();
+                        }
+                    }
                 }
             }
 
@@ -277,7 +301,7 @@ public class MainActivity extends AppCompatActivity {
         calculThread.start();
         //calculThread.join();
 
-        problem.setText("fin boucle join 1");
+        //problem.setText("fin boucle join 1");
         /*
         while (true){
             calculThread.start();
@@ -290,26 +314,67 @@ public class MainActivity extends AppCompatActivity {
         managementThread = new Thread(new Runnable() {
             @Override
             public void run() {
+                if (sender) {
 
-                while (true) {
-                    startRecording();
                     try {
-                        startCalculating();
+                        Thread.sleep(3000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+                    while (!detected) {
+                        startRecording();
 
-                    try {
-                        Thread.sleep(200);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        try {
+                            Thread.sleep(300);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            stopRecording();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            startCalculating();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
-                    try {
-                        stopRecording();
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                    timer= temp_end-temp_start;
+                    //problem.setText("temps tot : " + timer);
+                }
+                else{
+                    while (true) {
+                        startRecording();
+
+                        try {
+                            Thread.sleep(300);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            stopRecording();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            startCalculating();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
+                problem.setText("temps tot : " + timer);
             }
 
 
@@ -318,7 +383,7 @@ public class MainActivity extends AppCompatActivity {
         managementThread.start();
     }
 
-    private void detection(int frequency, FFT a, int boucle){
+    private boolean detection(int frequency, FFT a, int boucle){
         int x = frequency / 43;
         int j = Math.round(x);
         float seuil = Math.abs(a.real[j] * a.real[j] + a.imag[j] * a.imag[j]) / 100000;
@@ -326,8 +391,10 @@ public class MainActivity extends AppCompatActivity {
         if (aff >= 1000) {
             detect.setText("boucle n°:" + boucle + "detected : " + aff + "\n");
             //play();
+            return true;
         } else {
             detect.setText("boucle n°:" + boucle + "not detected : " + aff + "\n");
+            return false;
         }
     }
 
@@ -565,14 +632,14 @@ public class MainActivity extends AppCompatActivity {
         File initialFile = null;
         try {
             initialFile = new File(getFilename());
-            problem.setText("init file succeed" + boucleInit);
+            //problem.setText("init file succeed" + boucleInit);
         } catch (IOException e) {
             e.printStackTrace();
-            problem.setText("init fft:");
+            //problem.setText("init fft:");
         }
         try{
             is = new FileInputStream(initialFile);
-            problem.setText("init is succeed"+ boucleInit);
+            //problem.setText("init is succeed"+ boucleInit);
         }
         catch (IOException e){
             e.printStackTrace();
@@ -611,10 +678,10 @@ public class MainActivity extends AppCompatActivity {
         //fermer fichier
         try {
             is.close();
-            problem.setText("close successful");
+            //problem.setText("close successful");
         } catch (IOException e) {
             e.printStackTrace();
-            problem.setText("close is " + e);
+            //problem.setText("close is " + e);
         }
 
         this.initialize();
