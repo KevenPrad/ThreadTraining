@@ -284,7 +284,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     if (time_detected >= 2){
                         detected=true;
-                        if (sender ){
+                        if (sender){
                             temp_end=System.currentTimeMillis();
                             timer=temp_end-temp_start;
                             problem.setText("temps tot :" + timer );
@@ -747,6 +747,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void play(){
+        problem.setText("is sending a signal");
         if (mediaPlayer == null){
             mediaPlayer = new MediaPlayer();
 
@@ -761,6 +762,7 @@ public class MainActivity extends AppCompatActivity {
 
             mediaPlayer.start();
         }
+
 
     }
 }
